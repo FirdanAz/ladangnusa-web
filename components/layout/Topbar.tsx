@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useSidebar } from "@/hooks/useSidebar";
-import { mockUser } from "@/data/mockData";
+import { useAuth } from "@/providers/AuthProvider";
 
 export function Topbar() {
   const { isDark, toggleTheme } = useTheme();
   const { open } = useSidebar();
   const [search, setSearch] = useState("");
+  const { user, logout } = useAuth();
 
   return (
     <header className="topbar" id="topbar">
@@ -63,8 +64,8 @@ export function Topbar() {
       </div>
 
       {/* Avatar */}
-      <div className="topbar-avatar" title={mockUser.name}>
-        {mockUser.initials}
+      <div className="topbar-avatar" title={user?.name ?? "..."}>
+        {user?.initials ?? "?"}
       </div>
     </header>
   );

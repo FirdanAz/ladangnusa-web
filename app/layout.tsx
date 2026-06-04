@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+// @ts-ignore: global CSS import declaration
 import "./globals.css";
 import { ThemeProvider } from "@/providers/ThemeProvider";
+import { AuthProvider } from "@/providers/AuthProvider";
 
 export const metadata: Metadata = {
   title: "LadangNusa — AI Smart Farming",
@@ -22,7 +24,11 @@ export default function RootLayout({
   return (
     <html lang="id" suppressHydrationWarning>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AuthProvider>  {/* ← tambah ini */}
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

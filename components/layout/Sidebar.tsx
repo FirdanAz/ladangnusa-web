@@ -3,13 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "@/hooks/useSidebar";
-import { mockUser } from "@/data/mockData";
+import { useAuth } from "@/providers/AuthProvider";
 
 const mainNav = [
   { href: "/dashboard", icon: "bi-grid-1x2-fill", label: "Dashboard" },
   { href: "/lahan", icon: "bi-map-fill", label: "Lahan Saya" },
-  // ✅ Analisis AI diarahkan ke /lahan agar user pilih lahan dulu
-  // Sidebar tetap highlight active kalau pathname /analisis
   { href: "/lahan", icon: "bi-cpu-fill", label: "Analisis AI", badge: "Baru", activeOn: "/analisis" },
   { href: "/riwayat", icon: "bi-clock-history", label: "Riwayat Analisis" },
   { href: "/kalender", icon: "bi-calendar3", label: "Kalender Tanam" },
@@ -24,26 +22,19 @@ const infoNav = [
 export function Sidebar() {
   const pathname = usePathname();
   const { isOpen, close } = useSidebar();
+  const { user, logout } = useAuth();
 
   const isActive = (item: { href: string; activeOn?: string }) =>
     pathname === item.href || (item.activeOn ? pathname === item.activeOn : false);
 
   return (
     <>
-      {/* Overlay */}
-      <div
-        className={`sidebar-overlay ${isOpen ? "show" : ""}`}
-        onClick={close}
-        aria-hidden="true"
-      />
+      <div className={`sidebar-overlay ${isOpen ? "show" : ""}`} onClick={close} aria-hidden="true" />
 
-      {/* Sidebar */}
       <aside className={`sidebar ${isOpen ? "open" : ""}`} id="sidebar">
         {/* Brand */}
         <div className="sidebar-brand">
-          <div className="brand-icon">
-            <i className="bi bi-tree-fill" />
-          </div>
+          <div className="brand-icon"><i className="bi bi-tree-fill" /></div>
           <div className="brand-text">
             <div className="brand-name">LadangNusa</div>
             <div className="brand-tagline">AI Smart Farming</div>
@@ -86,20 +77,24 @@ export function Sidebar() {
           </ul>
         </nav>
 
-        {/* Footer */}
+        {/* Footer — user info dari API */}
         <div className="sidebar-footer">
           <div className="sidebar-user">
-            <div className="user-ava">{mockUser.initials}</div>
+            <div className="user-ava">{user?.initials ?? "?"}</div>
             <div className="user-info">
-              <div className="user-name">{mockUser.name}</div>
+              <div className="user-name">{user?.name ?? "..."}</div>
               <div className="user-role">
-                {mockUser.role} · {mockUser.location.split(",")[0]}
+                {user?.role ?? ""}{user?.location ? " · " + user.location.split(",")[0] : ""}
               </div>
             </div>
-            <i
-              className="bi bi-three-dots-vertical"
-              style={{ color: "rgba(255,255,255,.3)", fontSize: 16 }}
-            />
+            {/* ✅ Tombol logout */}
+            <button
+              onClick={logout}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
+              title="Keluar"
+            >
+              <i className="bi bi-box-arrow-right" style={{ color: "rgba(255,255,255,.4)", fontSize: 16 }} />
+            </button>
           </div>
         </div>
       </aside>

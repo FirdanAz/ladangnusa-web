@@ -1,33 +1,31 @@
-// ─── USER ───
-export interface User {
-  id: string;
-  name: string;
-  initials: string;
-  email: string;
-  phone: string;
-  role: string;
-  location: string;
-}
+// ─── LAHAN FORM ───
+// Union types ini hanya untuk form input (AddLahanModal), bukan response API
+export type LahanStatus       = "aktif" | "istirahat" | "panen";
+export type SoilType          = "Lempung" | "Pasir" | "Aluvial" | "Gambut" | "Latosol";
+export type Season            = "Musim Kemarau" | "Musim Hujan" | "Pancaroba";
+export type WaterAvailability = "Sangat Tersedia" | "Tersedia" | "Cukup" | "Terbatas";
+export type RiskLevel         = "Rendah" | "Sedang" | "Tinggi";
+export type EventType         = "tanam" | "panen" | "irigasi" | "semai" | "pemupukan";
 
 // ─── LAHAN ───
-export type LahanStatus = "aktif" | "istirahat" | "panen";
-export type SoilType = "Lempung" | "Pasir" | "Aluvial" | "Gambut" | "Latosol";
-export type Season = "Musim Kemarau" | "Musim Hujan" | "Pancaroba";
-export type WaterAvailability = "Sangat Tersedia" | "Tersedia" | "Cukup" | "Terbatas";
-
+// Pakai string biasa agar kompatibel dengan response API dari lib/api.ts
 export interface Lahan {
   id: string;
   name: string;
   location: string;
   area: number;
-  soilType: SoilType;
-  waterAvailability: WaterAvailability;
-  status: LahanStatus;
+  soilType: string;          // ← string, bukan SoilType
+  waterAvailability: string; // ← string, bukan WaterAvailability
+  status: string;            // ← string, bukan LahanStatus
   fertility: number;
   emoji: string;
   bgColor: string;
   lastCrop: string;
   lastCropAgo: string;
+  phLevel?: number;
+  elevation?: number;
+  notes?: string;
+  photoUrl?: string;
   createdAt: string;
 }
 
@@ -36,7 +34,7 @@ export interface LahanFormData {
   area: number;
   season: Season;
   location: string;
-  soilType: SoilType;
+  soilType: SoilType;          // form tetap strict
   waterAvailability: WaterAvailability;
   phLevel?: number;
   elevation?: number;
@@ -46,14 +44,12 @@ export interface LahanFormData {
 }
 
 // ─── ANALISIS ───
-export type RiskLevel = "Rendah" | "Sedang" | "Tinggi";
-
 export interface CropRecommendation {
   rank: number;
   name: string;
   emoji: string;
   score: number;
-  riskLevel: RiskLevel;
+  riskLevel: string;
   estimatedHarvest: string;
   estimatedProfit: string;
 }
@@ -66,14 +62,14 @@ export interface AnalysisResult {
   topRecommendation: CropRecommendation;
   reasoning: string;
   confidenceScore: number;
-  risks: { label: string; level: RiskLevel; emoji: string }[];
+  risks: { label: string; level: string; emoji: string }[];
   radarData: { label: string; crop1: number; crop2: number }[];
   createdAt: string;
 }
 
 export interface AnalysisHistory {
   id: string;
-  lahanId: string; // ✅ tambah ini
+  lahanId: string;
   crop: string;
   cropEmoji: string;
   lahanName: string;
@@ -109,16 +105,17 @@ export interface PriceTrendData {
 }
 
 // ─── KALENDER ───
-export type EventType = "tanam" | "panen" | "irigasi" | "semai" | "pemupukan";
-
 export interface CalendarEvent {
   id: string;
   title: string;
   date: string;
-  type: EventType;
+  type: string;
   emoji: string;
   color: string;
   lahanName: string;
+  lahanId?: string;
+  notes?: string;
+  rawDate?: string;
 }
 
 // ─── ARTIKEL ───
@@ -186,4 +183,15 @@ export interface AppPreferences {
   pushNotifications: boolean;
   autoAnalysis: boolean;
   realtimePriceUpdate: boolean;
+}
+
+// ─── USER ───
+export interface User {
+  id: number;
+  name: string;
+  initials: string;
+  email: string;
+  phone: string;
+  role: string;
+  location: string;
 }

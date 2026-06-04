@@ -4,45 +4,94 @@ import { useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { useTheme } from "@/providers/ThemeProvider";
-import { mockUser, mockPreferences } from "@/data/mockData";
-import type { AppPreferences } from "@/types";
+import { useAuth } from "@/providers/AuthProvider";
+import { authApi, ApiError } from "@/lib/api";
 
 const settingsNav = [
-  { id: "profil",    icon: "bi-person-fill",          label: "Profil Saya" },
-  { id: "notif",     icon: "bi-bell-fill",             label: "Notifikasi" },
-  { id: "tampilan",  icon: "bi-palette-fill",          label: "Tampilan" },
-  { id: "keamanan",  icon: "bi-shield-fill",           label: "Keamanan" },
-  { id: "ai",        icon: "bi-cpu-fill",              label: "AI & Analisis" },
-  { id: "data",      icon: "bi-cloud-arrow-up-fill",   label: "Data & Backup" },
+  { id: "profil", icon: "bi-person-fill", label: "Profil Saya" },
+  { id: "keamanan", icon: "bi-shield-fill", label: "Keamanan" },
+  { id: "tampilan", icon: "bi-palette-fill", label: "Tampilan" },
 ];
 
 export default function PengaturanPage() {
-  const [activeSection, setActiveSection] = useState("profil");
+  const { user, logout, updateUser } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const [activeSection, setActiveSection] = useState("profil");
 
-  const [prefs, setPrefs] = useState<AppPreferences>({
-    ...mockPreferences,
-    darkMode: isDark,
-  });
-
+  // ── Profil state ──
   const [profile, setProfile] = useState({
-    name: mockUser.name,
-    phone: mockUser.phone,
-    email: mockUser.email,
-    location: mockUser.location,
+    name: user?.name ?? "",
+    phone: user?.phone ?? "",
+    location: user?.location ?? "",
   });
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const handleToggle = (key: keyof AppPreferences) => (checked: boolean) => {
-    setPrefs((prev) => ({ ...prev, [key]: checked }));
-    if (key === "darkMode") toggleTheme();
+  // ── Password state ──
+  const [passwords, setPasswords] = useState({
+    current_password: "",
+    password: "",
+    password_confirmation: "",
+  });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [showPasswords, setShowPasswords] = useState(false);
+
+  // ── Handlers ──
+
+  const handleSaveProfile = async () => {
+    try {
+      setProfileLoading(true);
+      setProfileMsg(null);
+      const res = await authApi.updateProfile(profile);
+      updateUser(res.data);
+      setProfileMsg({ type: "success", text: "Profil berhasil diperbarui." });
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.firstError() : "Terjadi kesalahan.";
+      setProfileMsg({ type: "error", text: msg });
+    } finally {
+      setProfileLoading(false);
+    }
   };
 
-  const toggleItems = [
-    { key: "darkMode" as const, label: "Mode Gelap", desc: "Aktifkan tampilan gelap" },
-    { key: "pushNotifications" as const, label: "Notifikasi Push", desc: "Terima notifikasi harga & jadwal tanam" },
-    { key: "autoAnalysis" as const, label: "AI Auto-Analisis", desc: "Analisis otomatis setiap perubahan cuaca" },
-    { key: "realtimePriceUpdate" as const, label: "Update Harga Realtime", desc: "Sinkronisasi harga pasar setiap jam" },
-  ];
+  const handleChangePassword = async () => {
+    if (!passwords.current_password || !passwords.password) {
+      setPasswordMsg({ type: "error", text: "Semua field password wajib diisi." });
+      return;
+    }
+    if (passwords.password !== passwords.password_confirmation) {
+      setPasswordMsg({ type: "error", text: "Konfirmasi password tidak cocok." });
+      return;
+    }
+
+    try {
+      setPasswordLoading(true);
+      setPasswordMsg(null);
+      await authApi.changePassword(passwords);
+      setPasswords({ current_password: "", password: "", password_confirmation: "" });
+      setPasswordMsg({ type: "success", text: "Password berhasil diubah." });
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.firstError() : "Terjadi kesalahan.";
+      setPasswordMsg({ type: "error", text: msg });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const StatusMsg = ({ msg }: { msg: { type: string; text: string } | null }) => {
+    if (!msg) return null;
+    return (
+      <div style={{
+        padding: "10px 14px", borderRadius: 10, marginBottom: 16,
+        background: msg.type === "success" ? "var(--green-light)" : "var(--red-light)",
+        border: `1px solid ${msg.type === "success" ? "rgba(29,154,78,.2)" : "rgba(220,38,38,.2)"}`,
+        fontSize: 13,
+        color: msg.type === "success" ? "var(--green-accent)" : "var(--red)",
+      }}>
+        <i className={`bi ${msg.type === "success" ? "bi-check-circle" : "bi-exclamation-circle"}`} /> {msg.text}
+      </div>
+    );
+  };
 
   return (
     <div className="fade-in">
@@ -51,8 +100,9 @@ export default function PengaturanPage() {
         subtitle="Kelola akun dan preferensi aplikasi Anda"
       />
 
-      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 12 }} className="settings-layout">
-        {/* ── SIDEBAR NAV ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 12 }} className="settings-layout">
+
+        {/* Sidebar nav */}
         <div className="card-base" style={{ padding: 14, alignSelf: "start" }}>
           <div className="settings-nav">
             {settingsNav.map((item) => (
@@ -66,96 +116,169 @@ export default function PengaturanPage() {
               </div>
             ))}
             <div className="divider" />
-            <div className="settings-nav-item" style={{ color: "var(--red)" }}>
+            <div
+              className="settings-nav-item"
+              style={{ color: "var(--red)", cursor: "pointer" }}
+              onClick={logout}
+            >
               <i className="bi bi-box-arrow-right" style={{ color: "var(--red)" }} />
               Keluar
             </div>
           </div>
         </div>
 
-        {/* ── CONTENT ── */}
+        {/* Content */}
         <div>
-          {/* PROFIL */}
-          <div className="card-base" style={{ padding: 28, marginBottom: 16 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16 }}>
-              Profil Saya
-            </div>
 
-            {/* Avatar section */}
-            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
-              <div style={{
-                width: 72, height: 72, borderRadius: 16,
-                background: "linear-gradient(135deg,#1d9a4e,#0d5a2e)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 28, fontWeight: 800, color: "#fff", flexShrink: 0,
-              }}>
-                {mockUser.initials}
+          {/* ── PROFIL ── */}
+          {activeSection === "profil" && (
+            <div className="card-base" style={{ padding: 28 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 20 }}>
+                Profil Saya
               </div>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>{profile.name}</div>
-                <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{profile.email} · {mockUser.role}</div>
-                <button className="btn-outline-green" style={{ marginTop: 8, padding: "6px 14px", fontSize: 12 }}>
-                  <i className="bi bi-camera" /> Ganti Foto
-                </button>
-              </div>
-            </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <div className="form-label-custom">Nama Lengkap</div>
-                <input className="form-control-custom" type="text" value={profile.name}
-                  onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} />
+              {/* Avatar */}
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
+                <div style={{
+                  width: 64, height: 64, borderRadius: 14,
+                  background: "linear-gradient(135deg,#1d9a4e,#0d5a2e)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 24, fontWeight: 800, color: "#fff", flexShrink: 0,
+                }}>
+                  {user?.initials}
+                </div>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>{user?.name}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{user?.email} · {user?.role}</div>
+                </div>
               </div>
-              <div>
-                <div className="form-label-custom">No. Telepon</div>
-                <input className="form-control-custom" type="text" value={profile.phone}
-                  onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))} />
-              </div>
-              <div>
-                <div className="form-label-custom">Email</div>
-                <input className="form-control-custom" type="email" value={profile.email}
-                  onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))} />
-              </div>
-              <div>
-                <div className="form-label-custom">Lokasi</div>
-                <input className="form-control-custom" type="text" value={profile.location}
-                  onChange={(e) => setProfile((p) => ({ ...p, location: e.target.value }))} />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <button className="btn-green" onClick={() => alert("Perubahan disimpan!")}>
-                  <i className="bi bi-check-lg" /> Simpan Perubahan
-                </button>
-              </div>
-            </div>
-          </div>
 
-          {/* APP PREFERENCES */}
-          <div className="card-base" style={{ padding: 24 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16 }}>
-              Preferensi Aplikasi
-            </div>
-            <div>
-              {toggleItems.map((item, idx) => (
-                <div
-                  key={item.key}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "14px 0",
-                    borderBottom: idx < toggleItems.length - 1 ? "1px solid var(--border)" : "none",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{item.label}</div>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{item.desc}</div>
-                  </div>
-                  <ToggleSwitch
-                    checked={prefs[item.key]}
-                    onChange={handleToggle(item.key)}
+              <StatusMsg msg={profileMsg} />
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <div className="form-label-custom">Nama Lengkap</div>
+                  <input
+                    className="form-control-custom"
+                    type="text"
+                    value={profile.name}
+                    onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
                   />
                 </div>
-              ))}
+                <div>
+                  <div className="form-label-custom">No. Telepon</div>
+                  <input
+                    className="form-control-custom"
+                    type="text"
+                    value={profile.phone}
+                    onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <div className="form-label-custom">Email</div>
+                  <input
+                    className="form-control-custom"
+                    type="email"
+                    value={user?.email ?? ""}
+                    disabled
+                    style={{ opacity: 0.6, cursor: "not-allowed" }}
+                  />
+                </div>
+                <div>
+                  <div className="form-label-custom">Lokasi</div>
+                  <input
+                    className="form-control-custom"
+                    type="text"
+                    value={profile.location}
+                    onChange={(e) => setProfile((p) => ({ ...p, location: e.target.value }))}
+                  />
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <button
+                    className="btn-green"
+                    onClick={handleSaveProfile}
+                    disabled={profileLoading}
+                  >
+                    {profileLoading
+                      ? <><i className="bi bi-hourglass-split" /> Menyimpan...</>
+                      : <><i className="bi bi-check-lg" /> Simpan Perubahan</>
+                    }
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* ── KEAMANAN ── */}
+          {activeSection === "keamanan" && (
+            <div className="card-base" style={{ padding: 28 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 20 }}>
+                Ganti Password
+              </div>
+
+              <StatusMsg msg={passwordMsg} />
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 400 }}>
+                {[
+                  { label: "Password Lama", key: "current_password" as const, placeholder: "Masukkan password lama" },
+                  { label: "Password Baru", key: "password" as const, placeholder: "Minimal 8 karakter" },
+                  { label: "Konfirmasi Password Baru", key: "password_confirmation" as const, placeholder: "Ulangi password baru" },
+                ].map((item) => (
+                  <div key={item.key}>
+                    <div className="form-label-custom">{item.label}</div>
+                    <input
+                      className="form-control-custom"
+                      type={showPasswords ? "text" : "password"}
+                      placeholder={item.placeholder}
+                      value={passwords[item.key]}
+                      onChange={(e) => setPasswords((p) => ({ ...p, [item.key]: e.target.value }))}
+                    />
+                  </div>
+                ))}
+
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    id="showPw"
+                    checked={showPasswords}
+                    onChange={(e) => setShowPasswords(e.target.checked)}
+                  />
+                  <label htmlFor="showPw" style={{ fontSize: 13, color: "var(--text-muted)", cursor: "pointer" }}>
+                    Tampilkan password
+                  </label>
+                </div>
+
+                <button
+                  className="btn-green"
+                  style={{ alignSelf: "flex-start" }}
+                  onClick={handleChangePassword}
+                  disabled={passwordLoading}
+                >
+                  {passwordLoading
+                    ? <><i className="bi bi-hourglass-split" /> Menyimpan...</>
+                    : <><i className="bi bi-shield-check" /> Ubah Password</>
+                  }
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── TAMPILAN ── */}
+          {activeSection === "tampilan" && (
+            <div className="card-base" style={{ padding: 28 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 20 }}>
+                Tampilan
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0" }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>Mode Gelap</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Aktifkan tampilan gelap</div>
+                </div>
+                <ToggleSwitch checked={isDark} onChange={toggleTheme} />
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
