@@ -304,3 +304,17 @@ export interface DashboardStats {
   topRecommendation: string;
   topScore: number;
 }
+
+export const chatApi = {
+  send: (message: string, history: { role: "user" | "model"; content: string }[]) =>
+    request<{
+      success: boolean;
+      data: {
+        reply: string;
+        route: { path: string; label: string } | null;
+      };
+    }>('/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, history }),
+    }),
+};

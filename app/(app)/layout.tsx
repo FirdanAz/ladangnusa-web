@@ -5,20 +5,20 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { MobileNav } from "@/components/layout/MobileNav";
+import { ChatWidget } from "@/components/chat/ChatWidget";
+import { WelcomeModal } from "@/components/ui/WelcomeModal";
 import { useAuth } from "@/providers/AuthProvider";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  // ✅ Guard — redirect ke login kalau belum login
   useEffect(() => {
     if (!loading && !user) {
       router.replace("/login");
     }
   }, [user, loading, router]);
 
-  // Tampilkan loading spinner saat cek auth
   if (loading) {
     return (
       <div style={{
@@ -44,6 +44,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="page-content">{children}</div>
       </div>
       <MobileNav />
+      <ChatWidget />
+      <WelcomeModal />
     </>
   );
 }
