@@ -25,7 +25,7 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <AuthProvider>  {/* ← tambah ini */}
+          <AuthProvider>
             {children}
           </AuthProvider>
         </ThemeProvider>
