@@ -121,15 +121,23 @@ export const lahanApi = {
       body: data, // FormData untuk support upload foto
     }).then(r => r.json()),
 
-  update: (id: string, data: FormData) =>
-    fetch(`${BASE_URL}/lahan/${id}`, {
-      method: 'POST', // Laravel _method spoofing
-      headers: {
-        Accept: 'application/json',
-        ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
-      },
-      body: (() => { data.append('_method', 'PUT'); return data; })(),
-    }).then(r => r.json()),
+  update: (id: string, data: FormData) => {
+    const numericId = id.replace(/^lhn_0*/, "");
+
+    // Convert FormData ke plain object untuk dikirim sebagai JSON
+    const body: Record<string, any> = {};
+    data.forEach((value, key) => {
+      if (key !== "_method") body[key] = value;
+    });
+
+    return request<{ success: boolean; data: Lahan; message?: string }>(
+      `/lahan/${numericId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }
+    );
+  },
 
   delete: (id: string) =>
     request<{ success: boolean; message: string }>(`/lahan/${id}`, { method: 'DELETE' }),

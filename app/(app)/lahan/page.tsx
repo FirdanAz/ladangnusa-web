@@ -4,17 +4,18 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LahanCard, AddLahanCard } from "@/components/lahan/LahanCard";
 import { AddLahanModal } from "@/components/lahan/AddLahanModal";
+import { EditLahanModal } from "@/components/lahan/EditLahanModal";
 import { lahanApi } from "@/lib/api";
-import type { Lahan } from "@/lib/api";
-import type { LahanFormData } from "@/types";
+import type { Lahan, LahanFormData } from "@/types";
 
 export default function LahanPage() {
   const [lahanList, setLahanList] = useState<Lahan[]>([]);
   const [stats, setStats] = useState({ total: 0, total_area: 0, active: 0 });
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editLahan, setEditLahan] = useState<Lahan | null>(null);
 
-  // ── Load lahan dari API ──
+  // ── Load lahan ──
   useEffect(() => {
     const load = async () => {
       try {
@@ -32,11 +33,9 @@ export default function LahanPage() {
 
   // ── Tambah lahan ──
   const handleAddLahan = async (data: LahanFormData): Promise<Lahan> => {
-    // Kirim sebagai FormData supaya support foto
     const formData = new FormData();
     Object.entries(data).forEach(([key, val]) => {
       if (val !== undefined && val !== null) {
-        // Map camelCase ke snake_case untuk Laravel
         const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
         formData.append(snakeKey, val as string);
       }
@@ -56,13 +55,40 @@ export default function LahanPage() {
     return res.data;
   };
 
+  // ── Edit lahan ──
+  const handleEditLahan = async (id: string, formData: FormData) => {
+    const res = await lahanApi.update(id, formData);
+    if (!res.success) throw new Error(res.message ?? "Gagal update lahan");
+
+    // Update list dengan data terbaru
+    setLahanList((prev) =>
+      prev.map((l) => (l.id === id ? res.data : l))
+    );
+
+    // Recalculate stats
+    setStats((prev) => {
+      const updated = lahanList.map((l) => (l.id === id ? res.data : l));
+      return {
+        ...prev,
+        total_area: +updated.reduce((sum, l) => sum + l.area, 0).toFixed(1),
+        active: updated.filter((l) => l.status === "aktif").length,
+      };
+    });
+  };
+
+  // ── Buka modal edit ──
+  const handleOpenEdit = (id: string) => {
+    const lahan = lahanList.find((l) => l.id === id);
+    if (lahan) setEditLahan(lahan);
+  };
+
   return (
     <div className="fade-in">
       <PageHeader
         title="Lahan Saya"
         subtitle="Kelola dan pantau semua lahan pertanian Anda"
         action={
-          <button className="btn-green" onClick={() => setShowModal(true)}>
+          <button className="btn-green" onClick={() => setShowAddModal(true)}>
             <i className="bi bi-plus-lg" /> Tambah Lahan
           </button>
         }
@@ -91,16 +117,29 @@ export default function LahanPage() {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16 }}>
           {lahanList.map((lahan) => (
-            <LahanCard key={lahan.id} lahan={lahan} />
+            <LahanCard
+              key={lahan.id}
+              lahan={lahan}
+              onEdit={handleOpenEdit} // ✅ sambungkan tombol edit
+            />
           ))}
-          <AddLahanCard onClick={() => setShowModal(true)} />
+          <AddLahanCard onClick={() => setShowAddModal(true)} />
         </div>
       )}
 
+      {/* Modal Tambah */}
       <AddLahanModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
         onSubmit={handleAddLahan}
+      />
+
+      {/* Modal Edit */}
+      <EditLahanModal
+        isOpen={!!editLahan}
+        onClose={() => setEditLahan(null)}
+        onSubmit={handleEditLahan}
+        lahan={editLahan}
       />
     </div>
   );
